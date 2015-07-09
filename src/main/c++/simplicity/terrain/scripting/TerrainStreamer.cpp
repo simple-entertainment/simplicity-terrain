@@ -309,12 +309,12 @@ namespace simplicity
 			vertex2.texCoord = Vector2(1.0f, 1.0f);
 			vertex3.texCoord = Vector2(1.0f, 0.0f);
 
-			vertex0.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);
+			/*vertex0.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);
 			vertex1.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);
 			vertex2.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);
-			vertex3.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);
+			vertex3.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);*/
 
-			/*float maxY = max(vertex0.position.Y(),
+			float maxY = max(vertex0.position.Y(),
 							 max(vertex1.position.Y(), max(vertex2.position.Y(), vertex3.position.Y())));
 
 			vertex0.color = Vector4(0.0f, 0.5f, 0.0f, 1.0f);
@@ -338,7 +338,7 @@ namespace simplicity
 				vertex1.color = Vector4(0.83f, 0.65f, 0.15f, 1.0f);
 				vertex2.color = Vector4(0.83f, 0.65f, 0.15f, 1.0f);
 				vertex3.color = Vector4(0.83f, 0.65f, 0.15f, 1.0f);
-			}*/
+			}
 		}
 	}
 }
