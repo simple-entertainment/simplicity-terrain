@@ -42,8 +42,7 @@ namespace simplicity
 			unsigned int indexCount = borderIndexCount + (squareCount - size.X() - size.Y() + 1) * 6;
 
 			shared_ptr<MeshBuffer> terrainBuffer =
-					ModelFactory::getInstance()->createMeshBuffer(vertexCount, indexCount,
-																  Buffer::AccessHint::READ_WRITE);
+					ModelFactory::createMeshBuffer(vertexCount, indexCount, Buffer::AccessHint::READ_WRITE);
 			unique_ptr<Mesh> mesh = unique_ptr<Mesh>(new Mesh(terrainBuffer));
 
 			MeshData& meshData = mesh->getData(false);
