@@ -11,8 +11,8 @@ namespace simplicity
 							   const vector<unsigned int>& sampleFrequencies)
 		{
 			Vector2ui mapSamples = mapSize;
-			mapSamples.X() += 1;
-			mapSamples.Y() += 1;
+			mapSamples.X()++;
+			mapSamples.Y()++;
 
 			writeHighestFrequencySamples(resource, mapSamples, heightFunction, sampleFrequencies[0]);
 

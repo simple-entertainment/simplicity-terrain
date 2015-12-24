@@ -34,8 +34,8 @@ namespace simplicity
 				resourceOffset(resourceOffset)
 		{
 			mapSamples = mapSize;
-			mapSamples.X() += 1;
-			mapSamples.Y() += 1;
+			mapSamples.X()++;
+			mapSamples.Y()++;
 
 			normalOffset = mapSamples.X() * mapSamples.Y() * HEIGHT_STRIDE;
 		}
@@ -43,9 +43,11 @@ namespace simplicity
 		vector<float> ResourceTerrainSource::getSectionHeights(const Vector2i& sectionNorthWest,
 															   const Vector2i& sectionSize) const
 		{
-			vector<float> heightMap(static_cast<size_t>(sectionSize.X() * sectionSize.Y()));
+			Vector2i sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
 
-			readSection(sectionNorthWest, sectionSize, resourceOffset, HEIGHT_STRIDE,
+			vector<float> heightMap(static_cast<size_t>(sectionSamples.X() * sectionSamples.Y()));
+
+			readSection(sectionNorthWest, sectionSamples, resourceOffset, HEIGHT_STRIDE,
 						reinterpret_cast<char*>(heightMap.data()));
 
 			return heightMap;
@@ -54,26 +56,28 @@ namespace simplicity
 		vector<Vector3> ResourceTerrainSource::getSectionNormals(const Vector2i& sectionNorthWest,
 																 const Vector2i& sectionSize) const
 		{
-			vector<Vector3> normalMap(static_cast<size_t>(sectionSize.X() * sectionSize.Y()));
+			Vector2i sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
 
-			readSection(sectionNorthWest, sectionSize, resourceOffset + normalOffset, NORMAL_STRIDE,
+			vector<Vector3> normalMap(static_cast<size_t>(sectionSamples.X() * sectionSamples.Y()));
+
+			readSection(sectionNorthWest, sectionSamples, resourceOffset + normalOffset, NORMAL_STRIDE,
 						reinterpret_cast<char*>(normalMap.data()));
 
 			return normalMap;
 		}
 
-		void ResourceTerrainSource::readSection(const Vector2i& sectionNorthWest, const Vector2i& sectionSize,
+		void ResourceTerrainSource::readSection(const Vector2i& sectionNorthWest, const Vector2i& sectionSamples,
 												unsigned int offset, unsigned int stride, char* destination) const
 		{
 			unsigned int resourceRowSize = mapSamples.X() * stride;
-			unsigned int sectionRowSize = sectionSize.X() * stride;
+			unsigned int sectionRowSize = sectionSamples.X() * stride;
 
 			Vector2i resourceNorthWest = toResourceSpace(sectionNorthWest);
 			unsigned int resourcePosition = offset +
 					resourceNorthWest.Y() * resourceRowSize + resourceNorthWest.X() * stride;
 			unique_ptr<istream> resourceStream = resource.getInputStream();
 
-			for (unsigned int row = 0; row < sectionSize.Y(); row++)
+			for (unsigned int row = 0; row < sectionSamples.Y(); row++)
 			{
 				resourceStream->seekg(resourcePosition);
 				resourceStream->read(&destination[row * sectionRowSize], sectionRowSize);

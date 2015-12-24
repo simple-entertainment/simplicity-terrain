@@ -46,7 +46,7 @@ namespace simplicity
 
 				unsigned int resourceOffset;
 
-				void readSection(const Vector2i& sectionNorthWest, const Vector2i& sectionSize,
+				void readSection(const Vector2i& sectionNorthWest, const Vector2i& sectionSamples,
 								 unsigned int offset, unsigned int stride, char* destination) const;
 
 				Vector2i toResourceSpace(const Vector2i& position) const;

@@ -28,8 +28,8 @@ namespace simplicity
 														 std::function<HeightFunction> heightFunction,
 														 unsigned int sampleFrequency);
 
-			static void writeLowerFrequencySamples(Resource& resource, const Vector2ui& mapSamples,
-												   const std::vector<unsigned int>& sampleFrequencies);
+				static void writeLowerFrequencySamples(Resource& resource, const Vector2ui& mapSamples,
+													   const std::vector<unsigned int>& sampleFrequencies);
 		};
 	}
 }

@@ -162,7 +162,7 @@ namespace simplicity
 			{
 				sectionNorthWest.X() += chunk.getSize().X() - movement.X();
 			}
-			Vector2i sectionSize(absoluteMovement.X() + 1, chunk.getSize().Y() + 1);
+			Vector2i sectionSize(absoluteMovement.X(), chunk.getSize().Y());
 
 			vector<float> heightMap = source->getSectionHeights(sectionNorthWest, sectionSize);
 			vector<Vector3> normalMap = source->getSectionNormals(sectionNorthWest, sectionSize);
@@ -191,7 +191,7 @@ namespace simplicity
 			{
 				sectionNorthWest.Y() += chunk.getSize().Y() - movement.Y();
 			}
-			Vector2i sectionSize(chunk.getSize().X() + 1, absoluteMovement.Y() + 1);
+			Vector2i sectionSize(chunk.getSize().X(), absoluteMovement.Y());
 
 			vector<float> heightMap = source->getSectionHeights(sectionNorthWest, sectionSize);
 			vector<Vector3> normalMap = source->getSectionNormals(sectionNorthWest, sectionSize);
