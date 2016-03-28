@@ -41,9 +41,9 @@ namespace simplicity
 		}
 
 		vector<float> ResourceTerrainSource::getSectionHeights(const Vector2i& sectionNorthWest,
-															   const Vector2i& sectionSize) const
+															   const Vector2ui& sectionSize) const
 		{
-			Vector2i sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
+			Vector2ui sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
 
 			vector<float> heightMap(static_cast<size_t>(sectionSamples.X() * sectionSamples.Y()));
 
@@ -54,9 +54,9 @@ namespace simplicity
 		}
 
 		vector<Vector3> ResourceTerrainSource::getSectionNormals(const Vector2i& sectionNorthWest,
-																 const Vector2i& sectionSize) const
+																 const Vector2ui& sectionSize) const
 		{
-			Vector2i sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
+			Vector2ui sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
 
 			vector<Vector3> normalMap(static_cast<size_t>(sectionSamples.X() * sectionSamples.Y()));
 
@@ -66,7 +66,7 @@ namespace simplicity
 			return normalMap;
 		}
 
-		void ResourceTerrainSource::readSection(const Vector2i& sectionNorthWest, const Vector2i& sectionSamples,
+		void ResourceTerrainSource::readSection(const Vector2i& sectionNorthWest, const Vector2ui& sectionSamples,
 												unsigned int offset, unsigned int stride, char* destination) const
 		{
 			unsigned int resourceRowSize = mapSamples.X() * stride;

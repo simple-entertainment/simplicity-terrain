@@ -16,8 +16,9 @@
  */
 
 // Core
+#include "ResourceTerrainSource.h"
 #include "TerrainFactory.h"
+#include "TerrainSource.h"
 
 // Scripting
-#include "scripting/LODTerrainStreamer.h"
 #include "scripting/TerrainStreamer.h"

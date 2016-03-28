@@ -26,31 +26,43 @@ namespace simplicity
 		class TerrainChunk
 		{
 			public:
-				TerrainChunk(const Vector2ui& size,
-							 const std::vector<unsigned int>& borderPatchLengths = { 1, 1, 1, 1 });
+				enum class Edge
+				{
+					EAST,
+					NORTH,
+					SOUTH,
+					WEST
+				};
+
+				TerrainChunk(unsigned int size, float scale = 1.0f);
 
 				std::unique_ptr<Mesh> createMesh();
 
-				Mesh* getMesh() const;
+				float getHeight(const Vector3& position) const;
 
-				const Vector2ui& getSize() const;
+				Mesh* getMesh();
+
+				const Mesh* getMesh() const;
+
+				Vector2i getMeshPosition(const Vector3& worldPosition) const;
+
+				unsigned int getSize() const;
+
+				void patch(Edge edge, unsigned int patchSize);
+
+				void setVertices(const Vector2i& mapNorthWest, const std::vector<float>& heightMap,
+								 const std::vector<Vector3>& normalMap);
 
 			private:
-				std::vector<unsigned int> borderPatchLengths;
-
 				Mesh* mesh;
 
-				Vector2ui size;
+				unsigned int samples;
 
-				unsigned int getBorderIndexCount(unsigned int borderLength, unsigned int borderPatchLength) const;
+				float scale;
 
-				void insertBorderIndices(MeshData& meshData);
+				unsigned int size;
 
-				void insertBorderIndices(MeshData& meshData, unsigned int baseIndex, unsigned int baseVertex,
-										 unsigned int borderLength, unsigned int patchLength, int borderUnitStride,
-										 const std::vector<unsigned int>& vertexOrder);
-
-				void insertInteriorIndices(MeshData& meshData, unsigned int baseIndex);
+				void setIndices(MeshData& meshData);
 		};
 	}
 }

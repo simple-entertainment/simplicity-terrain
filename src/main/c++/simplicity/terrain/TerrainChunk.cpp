@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with The Simplicity Engine. If not, see
  * <http://www.gnu.org/licenses/>.
  */
+#include <simplicity/math/MathFunctions.h>
 #include <simplicity/model/ModelFactory.h>
 
 #include "TerrainChunk.h"
@@ -24,22 +25,19 @@ namespace simplicity
 {
 	namespace terrain
 	{
-		TerrainChunk::TerrainChunk(const Vector2ui& size, const vector<unsigned int>& borderPatchLengths) :
-				borderPatchLengths(borderPatchLengths),
+		TerrainChunk::TerrainChunk(unsigned int size, float scale) :
 				mesh(nullptr),
+				samples(size + 1),
+				scale(scale),
 				size(size)
 		{
 		}
 
 		unique_ptr<Mesh> TerrainChunk::createMesh()
 		{
-			unsigned int squareCount = size.X() * size.Y();
-			unsigned int vertexCount = squareCount * 4;
-			unsigned int borderIndexCount = getBorderIndexCount(size.X(), borderPatchLengths[0]) +
-					getBorderIndexCount(size.Y(), borderPatchLengths[1]) +
-					getBorderIndexCount(size.X(), borderPatchLengths[2]) +
-					getBorderIndexCount(size.Y(), borderPatchLengths[3]);
-			unsigned int indexCount = borderIndexCount + (squareCount - size.X() - size.Y() + 1) * 6;
+			unsigned int vertexCount = samples * samples;
+			unsigned int squareCount = size * size;
+			unsigned int indexCount = squareCount * 6;
 
 			shared_ptr<MeshBuffer> terrainBuffer =
 					ModelFactory::createMeshBuffer(vertexCount, indexCount, Buffer::AccessHint::READ_WRITE);
@@ -50,8 +48,7 @@ namespace simplicity
 			meshData.vertexCount = vertexCount;
 			meshData.indexCount = indexCount;
 
-			insertBorderIndices(meshData);
-			insertInteriorIndices(meshData, borderIndexCount);
+			setIndices(meshData);
 
 			mesh->releaseData();
 
@@ -59,126 +56,208 @@ namespace simplicity
 			return move(mesh);
 		}
 
-		unsigned int TerrainChunk::getBorderIndexCount(unsigned int borderLength,
-															unsigned int borderPatchLength) const
+		float TerrainChunk::getHeight(const Vector3& position) const
 		{
-			return (borderLength - 2 + borderLength / borderPatchLength) * 3;
+			Vector2i meshPosition = getMeshPosition(position);
+
+			if (meshPosition.X() < 0 || meshPosition.X() >= size ||
+				meshPosition.Y() < 0 || meshPosition.Y() >= size)
+			{
+				return 0.0f;
+			}
+
+			// TODO abs doesn't work here for negative numbers!!!
+			float xLocal = remainder(abs(position.X()), scale);
+			float zLocal = remainder(abs(position.Z()), scale);
+			bool inFirstTriangle = xLocal < zLocal;
+
+			const MeshData& meshData = mesh->getData();
+
+			unsigned int vertexIndex = meshPosition.Y() * samples + meshPosition.X();
+			Vector3 pointA = meshData.vertexData[vertexIndex].position;
+			Vector3 pointB;
+			Vector3 pointC;
+			if (inFirstTriangle)
+			{
+				pointB = meshData.vertexData[vertexIndex + samples].position;
+				pointC = meshData.vertexData[vertexIndex + samples + 1].position;
+			}
+			else
+			{
+				pointB = meshData.vertexData[vertexIndex + samples + 1].position;
+				pointC = meshData.vertexData[vertexIndex + 1].position;
+			}
+
+			mesh->releaseData();
+
+			Vector3 edge0 = pointB - pointA;
+			Vector3 edge1 = pointC - pointA;
+			Vector3 normal = crossProduct(edge0, edge1);
+
+			// Solve the equation for the plane (ax + by + cz + d = 0) to find y.
+			float d = dotProduct(normal, pointA) * -1.0f;
+			float y = ((normal.X() * position.X() + normal.Z() * position.Z() + d) / normal.Y()) * -1.0f;
+
+			/*Logs::debug("simplicity::terrain", "Terrain height at (%f, %f): %f (xLocal: %f, zLocal: %f, triangle: %d)",
+					  pointA.X(), pointA.Z(), y, xLocal, zLocal, inFirstTriangle);
+
+			Logs::debug("simplicity::terrain",
+					  "Terrain height at (%f, %f): %f (between %f and %f (%f)) (meshPosition: (%i, %i))", position.X(),
+					  position.Z(), y, pointB.Y(), pointA.Y(), pointC.Y(), meshPosition.X(), meshPosition.Y());*/
+
+			return y;
 		}
 
-		Mesh* TerrainChunk::getMesh() const
+		Mesh* TerrainChunk::getMesh()
 		{
 			return mesh;
 		}
 
-		const Vector2ui& TerrainChunk::getSize() const
+		const Mesh* TerrainChunk::getMesh() const
+		{
+			return mesh;
+		}
+
+		unsigned int TerrainChunk::getSize() const
 		{
 			return size;
 		}
 
-		void TerrainChunk::insertBorderIndices(MeshData& meshData)
+		void TerrainChunk::patch(Edge edge, unsigned int patchSize)
 		{
-			unsigned int baseIndex = 0;
-			unsigned int squareCount = size.X() * size.Y();
+			MeshData& meshData = mesh->getData(false);
 
-			// North Border
-			insertBorderIndices(meshData, baseIndex, 0, size.X(), borderPatchLengths[0], 4, {0, 1, 2, 3});
-			baseIndex += getBorderIndexCount(size.X(), borderPatchLengths[0]);
-
-			// East Border
-			insertBorderIndices(meshData, baseIndex, (size.X() - 1) * 4, size.Y(), borderPatchLengths[1], size.X() * 4,
-								{3, 0, 1, 2});
-			baseIndex += getBorderIndexCount(size.Y(), borderPatchLengths[1]);
-
-			// South Border
-			insertBorderIndices(meshData, baseIndex, (squareCount - 1) * 4, size.X(), borderPatchLengths[2], -4,
-								{2, 3, 0, 1});
-			baseIndex += getBorderIndexCount(size.X(), borderPatchLengths[2]);
-
-			// West Border
-			insertBorderIndices(meshData, baseIndex, (squareCount - size.X()) * 4, size.Y(), borderPatchLengths[3],
-								size.X() * -4, {1, 2, 3, 0});
-		}
-
-		void TerrainChunk::insertBorderIndices(MeshData& meshData, unsigned int baseIndex, unsigned int baseVertex,
-											   unsigned int borderLength, unsigned int patchLength,
-											   int borderUnitStride, const vector<unsigned int>& vertexOrder)
-		{
-			unsigned int indexIndex = baseIndex;
-			unsigned int centerPatchIndex = patchLength / 2;
-
-			for (unsigned int borderUnitIndex = 0; borderUnitIndex < borderLength;
-				 borderUnitIndex += patchLength)
+			if (edge == Edge::EAST || edge == Edge::WEST)
 			{
-				unsigned int firstBorderUnitIndex = baseVertex +
-													borderUnitIndex * borderUnitStride;
-				unsigned int centerBorderUnitIndex = baseVertex +
-													 (borderUnitIndex + centerPatchIndex) * borderUnitStride;
-				unsigned int lastBorderUnitIndex = baseVertex +
-												   (borderUnitIndex + patchLength - 1) * borderUnitStride;
-
-				// The special case where the patch length is 1 (i.e. no patching is really needed...). Luckily this
-				// algorithm mostly applies correct indices for it except for the very first unit where the center index
-				// needs to be moved.
-				if (borderUnitIndex == 0 && patchLength == 1)
+				unsigned int patchCount = size / patchSize;
+				unsigned int offset = 0;
+				if (edge == Edge::EAST)
 				{
-					centerBorderUnitIndex += borderUnitStride;
+					offset = size;
 				}
 
-				meshData.indexData[indexIndex++] = firstBorderUnitIndex + vertexOrder[0];
-				meshData.indexData[indexIndex++] = centerBorderUnitIndex + vertexOrder[1];
-				meshData.indexData[indexIndex++] = lastBorderUnitIndex + vertexOrder[3];
-
-				for (unsigned int borderUnit = 0; borderUnit < patchLength; borderUnit++)
+				for (unsigned int patchIndex = 0; patchIndex < patchCount; patchIndex++)
 				{
-					if ((borderUnitIndex == 0 && borderUnit == 0) ||
-						(borderUnitIndex == borderLength - patchLength && borderUnit == patchLength - 1))
-					{
-						continue;
-					}
+					unsigned int baseVertexIndex = offset + samples * patchIndex * patchSize;
 
-					unsigned int currentBorderUnitIndex = firstBorderUnitIndex + borderUnit * borderUnitStride;
+					float northHeight = meshData.vertexData[baseVertexIndex].position.Y();
+					float southHeight = meshData.vertexData[baseVertexIndex + samples * patchSize].position.Y();
 
-					if (borderUnit < centerPatchIndex)
-					{
-						meshData.indexData[indexIndex++] = firstBorderUnitIndex + vertexOrder[0];
-					}
-					else
-					{
-						meshData.indexData[indexIndex++] = lastBorderUnitIndex + vertexOrder[3];
-					}
+					float heightDifference = southHeight - northHeight;
 
-					meshData.indexData[indexIndex++] = currentBorderUnitIndex + vertexOrder[1];
-					meshData.indexData[indexIndex++] = currentBorderUnitIndex + vertexOrder[2];
+					for (unsigned int unitIndex = 1; unitIndex < patchSize; unitIndex++)
+					{
+						float height = northHeight + heightDifference * (static_cast<float>(unitIndex) /
+															  			 static_cast<float>(patchSize));
+
+						meshData.vertexData[baseVertexIndex + samples * unitIndex].position.Y() = height;
+					}
+				}
+			}
+			else if (edge == Edge::NORTH || edge == Edge::SOUTH)
+			{
+				unsigned int patchCount = size / patchSize;
+				unsigned int offset = 0;
+				if (edge == Edge::SOUTH)
+				{
+					offset = samples * size;
+				}
+
+				for (unsigned int patchIndex = 0; patchIndex < patchCount; patchIndex++)
+				{
+					unsigned int baseVertexIndex = offset + patchIndex * patchSize;
+
+					float westHeight = meshData.vertexData[baseVertexIndex].position.Y();
+					float eastHeight = meshData.vertexData[baseVertexIndex + patchSize].position.Y();
+
+					float heightDifference = eastHeight - westHeight;
+
+					for (unsigned int unitIndex = 1; unitIndex < patchSize; unitIndex++)
+					{
+						float height = westHeight + heightDifference * (static_cast<float>(unitIndex) /
+															 			static_cast<float>(patchSize));
+
+						meshData.vertexData[baseVertexIndex + unitIndex].position.Y() = height;
+					}
+				}
+			}
+
+			mesh->releaseData();
+		}
+
+		void TerrainChunk::setIndices(MeshData& meshData)
+		{
+			unsigned int indexIndex = 0;
+
+			for (unsigned int column = 0; column < size; column++)
+			{
+				for (unsigned int row = 0; row < size; row++)
+				{
+					unsigned int baseVertexIndex = row * samples + column;
+
+					meshData.indexData[indexIndex++] = baseVertexIndex;
+					meshData.indexData[indexIndex++] = baseVertexIndex + samples;
+					meshData.indexData[indexIndex++] = baseVertexIndex + samples + 1;
+					meshData.indexData[indexIndex++] = baseVertexIndex;
+					meshData.indexData[indexIndex++] = baseVertexIndex + samples + 1;
+					meshData.indexData[indexIndex++] = baseVertexIndex + 1;
 				}
 			}
 		}
 
-		void TerrainChunk::insertInteriorIndices(MeshData& meshData, unsigned int baseIndex)
+		void TerrainChunk::setVertices(const Vector2i& mapNorthWest, const vector<float>& heightMap,
+									   const vector<Vector3>& normalMap)
 		{
-			unsigned int vertexIndex = 0;
-			unsigned int indexIndex = baseIndex;
-			for (unsigned int row = 0; row < size.Y(); row++)
-			{
-				if (row < 1 || row >= size.Y() - 1)
-				{
-					vertexIndex += size.X() * 4;
-					continue;
-				}
+			MeshData& meshData = mesh->getData(false);
 
-				for (unsigned int column = 0; column < size.X(); column++)
+			for (unsigned int column = 0; column < samples; column++)
+			{
+				for (unsigned int row = 0; row < samples; row++)
 				{
-					if (column < 1 || column >= size.X() - 1)
+					Vertex& vertex = meshData.vertexData[row * samples + column];
+
+					vertex.normal = normalMap[row * samples + column];
+
+					vertex.position.X() = static_cast<float>(mapNorthWest.X()) + static_cast<float>(column) * scale;
+					vertex.position.Y() = heightMap[row * samples + column];
+					vertex.position.Z() = static_cast<float>(mapNorthWest.Y()) + static_cast<float>(row) * scale;
+
+					// Random
+					//vertex.color = Vector4(getRandomInt(0, 1), getRandomInt(0, 1), getRandomInt(0, 1), 1.0f);
+
+					// Grass
+					vertex.color = Vector4(0.0f, 0.5f, 0.0f, 1.0f);
+
+					// Snow
+					/*if (vertex.position.Y() > 60.0f)
 					{
-						vertexIndex += 4;
-						continue;
+						vertex.color = Vector4(0.8f, 0.8f, 0.8f, 1.0f);
 					}
 
-					ModelFactory::insertRectangleIndices(meshData.indexData, indexIndex, vertexIndex);
+					// Sand
+					if (vertex.position.Y() < 2.0f)
+					{
+						vertex.color = Vector4(0.83f, 0.65f, 0.15f, 1.0f);
+					}*/
 
-					vertexIndex += 4;
-					indexIndex += 6;
+					// White borders
+					if (row == 0 ||
+						row == size ||
+						column == 0 ||
+						column == size)
+					{
+						vertex.color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+					}
 				}
 			}
+
+			mesh->releaseData();
+		}
+
+		Vector2i TerrainChunk::getMeshPosition(const Vector3& worldPosition) const
+		{
+			return Vector2i(static_cast<int>(round(worldPosition.X() / scale)),
+							static_cast<int>(round(worldPosition.Z() / scale)));
 		}
 	}
 }

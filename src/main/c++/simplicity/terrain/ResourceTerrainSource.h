@@ -32,10 +32,10 @@ namespace simplicity
 									  unsigned int resourceOffset = 0);
 
 				std::vector<float> getSectionHeights(const Vector2i& sectionNorthWest,
-													 const Vector2i& sectionSize) const override;
+													 const Vector2ui& sectionSize) const override;
 
 				std::vector<Vector3> getSectionNormals(const Vector2i& sectionNorthWest,
-													   const Vector2i& sectionSize) const override;
+													   const Vector2ui& sectionSize) const override;
 
 			private:
 				Vector2ui mapSamples;
@@ -46,7 +46,7 @@ namespace simplicity
 
 				unsigned int resourceOffset;
 
-				void readSection(const Vector2i& sectionNorthWest, const Vector2i& sectionSamples,
+				void readSection(const Vector2i& sectionNorthWest, const Vector2ui& sectionSamples,
 								 unsigned int offset, unsigned int stride, char* destination) const;
 
 				Vector2i toResourceSpace(const Vector2i& position) const;

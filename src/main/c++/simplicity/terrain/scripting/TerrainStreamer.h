@@ -14,58 +14,50 @@ namespace simplicity
 		class TerrainStreamer : public Script
 		{
 			public:
-				TerrainStreamer(std::unique_ptr<TerrainSource> source, const Vector2ui& mapSize,
-								const Vector2ui& chunkSize, float unitLength = 1.0f,
-								const std::vector<unsigned int>& borderPatchLengths = { 1, 1, 1, 1 });
+				struct LevelOfDetail
+				{
+					unsigned int layerCount;
 
-				void execute(Entity& entity) override;
+					unsigned int sampleFrequency;
 
-				float getHeight(const Vector3& position) const;
+					std::unique_ptr<TerrainSource> source;
+				};
 
-				void onAddEntity(Entity& entity) override;
+				TerrainStreamer(std::unique_ptr<std::vector<LevelOfDetail>> levelsOfDetail, const Vector2ui& mapSize,
+								unsigned int chunkSize);
 
-				void setCenter(const Vector3& center);
+				void execute() override;
 
-				void setTrackedEntity(const Entity& trackedEntity);
+				void onAddEntity() override;
+
+				void setTarget(const Entity& target);
+
+				void setTarget(const Vector3& target);
 
 			private:
-				TerrainChunk chunk;
+				Vector2i centerPosition;
 
-				Vector2i currentPosition;
+				std::vector<std::vector<TerrainChunk>> chunks;
 
-				bool initialized;
+				unsigned int chunkSize;
 
-				Vector2ui mapSamples;
+				std::map<unsigned int,unsigned int> layerMap;
 
-				Vector2i meshNorthWest;
+				std::unique_ptr<std::vector<LevelOfDetail>> levelsOfDetail;
 
-				std::unique_ptr<TerrainSource> source;
+				Vector2ui mapSize;
 
-				const Entity* trackedEntity;
+				Vector2ui northWestChunk;
 
-				float unitLength;
+				float radiusf;
 
-				Vector3 worldPosition;
+				unsigned int radiusi;
 
-				Vector2i getChunkNorthWest() const;
+				const Entity* targetEntity;
 
-				Vector2i meshMove(const Vector2i& position, const Vector2i& movement) const;
+				Vector3 targetPosition;
 
-				void streamEastWest(const Vector2i& position, const Vector2i& movement,
-									const Vector2ui& absoluteMovement);
-
-				void streamNorthSouth(const Vector2i& position, const Vector2i& movement,
-									  const Vector2ui& absoluteMovement);
-
-				Vector2i toUnitPosition(const Vector3& worldPosition) const;
-
-				void writeSection(const std::vector<float>& heightMap, const std::vector<Vector3>& normalMap,
-								  unsigned int rows, unsigned int columns, const Vector2i& sectionNorthWest,
-								  const Vector2i& meshNorthWest);
-
-				void writeSquareVertices(MeshData& meshData, unsigned int vertexIndex, const Vector2& northWest,
-										 const std::vector<float>& heights, const std::vector<Vector3>& normals,
-										 const Vector4& color);
+				void stream(const Vector2i& movement);
 		};
 	}
 }
