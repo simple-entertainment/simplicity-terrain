@@ -66,26 +66,25 @@ namespace simplicity
 				return 0.0f;
 			}
 
-			// TODO abs doesn't work here for negative numbers!!!
-			float xLocal = remainder(abs(position.X()), scale);
-			float zLocal = remainder(abs(position.Z()), scale);
+			float xLocal = fmod(position.X(), scale);
+			float zLocal = fmod(position.Z(), scale);
 			bool inFirstTriangle = xLocal < zLocal;
 
 			const MeshData& meshData = mesh->getData();
 
-			unsigned int vertexIndex = meshPosition.Y() * samples + meshPosition.X();
-			Vector3 pointA = meshData.vertexData[vertexIndex].position;
+			unsigned int baseVertexIndex = meshPosition.Y() * samples + meshPosition.X();
+			Vector3 pointA(0.0f, meshData.vertexData[baseVertexIndex].position.Y(), 0.0f);
 			Vector3 pointB;
 			Vector3 pointC;
 			if (inFirstTriangle)
 			{
-				pointB = meshData.vertexData[vertexIndex + samples].position;
-				pointC = meshData.vertexData[vertexIndex + samples + 1].position;
+				pointB = Vector3(0.0f, meshData.vertexData[baseVertexIndex + samples].position.Y(), scale);
+				pointC = Vector3(scale, meshData.vertexData[baseVertexIndex + samples + 1].position.Y(), scale);
 			}
 			else
 			{
-				pointB = meshData.vertexData[vertexIndex + samples + 1].position;
-				pointC = meshData.vertexData[vertexIndex + 1].position;
+				pointB = Vector3(scale, meshData.vertexData[baseVertexIndex + samples + 1].position.Y(), scale);
+				pointC = Vector3(scale, meshData.vertexData[baseVertexIndex + 1].position.Y(), 0.0f);
 			}
 
 			mesh->releaseData();
@@ -93,17 +92,14 @@ namespace simplicity
 			Vector3 edge0 = pointB - pointA;
 			Vector3 edge1 = pointC - pointA;
 			Vector3 normal = crossProduct(edge0, edge1);
+			normal.normalize();
 
 			// Solve the equation for the plane (ax + by + cz + d = 0) to find y.
+			float ax = normal.X() * xLocal;
+			float b = normal.Y();
+			float cz = normal.Z() * zLocal;
 			float d = dotProduct(normal, pointA) * -1.0f;
-			float y = ((normal.X() * position.X() + normal.Z() * position.Z() + d) / normal.Y()) * -1.0f;
-
-			/*Logs::debug("simplicity::terrain", "Terrain height at (%f, %f): %f (xLocal: %f, zLocal: %f, triangle: %d)",
-					  pointA.X(), pointA.Z(), y, xLocal, zLocal, inFirstTriangle);
-
-			Logs::debug("simplicity::terrain",
-					  "Terrain height at (%f, %f): %f (between %f and %f (%f)) (meshPosition: (%i, %i))", position.X(),
-					  position.Z(), y, pointB.Y(), pointA.Y(), pointC.Y(), meshPosition.X(), meshPosition.Y());*/
+			float y = (ax + cz + d) / b * -1.0f;
 
 			return y;
 		}
@@ -229,7 +225,7 @@ namespace simplicity
 					vertex.color = Vector4(0.0f, 0.5f, 0.0f, 1.0f);
 
 					// Snow
-					/*if (vertex.position.Y() > 60.0f)
+					if (vertex.position.Y() > 60.0f)
 					{
 						vertex.color = Vector4(0.8f, 0.8f, 0.8f, 1.0f);
 					}
@@ -238,16 +234,16 @@ namespace simplicity
 					if (vertex.position.Y() < 2.0f)
 					{
 						vertex.color = Vector4(0.83f, 0.65f, 0.15f, 1.0f);
-					}*/
+					}
 
 					// White borders
-					if (row == 0 ||
+					/*if (row == 0 ||
 						row == size ||
 						column == 0 ||
 						column == size)
 					{
 						vertex.color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-					}
+					}*/
 				}
 			}
 
@@ -256,8 +252,8 @@ namespace simplicity
 
 		Vector2i TerrainChunk::getMeshPosition(const Vector3& worldPosition) const
 		{
-			return Vector2i(static_cast<int>(round(worldPosition.X() / scale)),
-							static_cast<int>(round(worldPosition.Z() / scale)));
+			return Vector2i(static_cast<int>(floor(worldPosition.X() / scale)),
+							static_cast<int>(floor(worldPosition.Z() / scale)));
 		}
 	}
 }

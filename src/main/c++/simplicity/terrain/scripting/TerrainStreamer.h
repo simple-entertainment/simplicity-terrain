@@ -28,6 +28,8 @@ namespace simplicity
 
 				void execute() override;
 
+				float getHeight(const Vector3& position) const;
+
 				void onAddEntity() override;
 
 				void setTarget(const Entity& target);
@@ -35,8 +37,6 @@ namespace simplicity
 				void setTarget(const Vector3& target);
 
 			private:
-				Vector2i centerPosition;
-
 				std::vector<std::vector<TerrainChunk>> chunks;
 
 				unsigned int chunkSize;
@@ -49,15 +49,23 @@ namespace simplicity
 
 				Vector2ui northWestChunk;
 
-				float radiusf;
+				Vector3 northWestPosition;
 
-				unsigned int radiusi;
+				unsigned int radius;
+
+				unsigned int size;
 
 				const Entity* targetEntity;
 
 				Vector3 targetPosition;
 
 				void stream(const Vector2i& movement);
+
+				Vector2i toChunkPosition(const Vector3& position) const;
+
+				Vector3 toRelativePosition(const Vector3& position, bool relativeToCenter = false) const;
+
+				Vector3 toWorldPosition(const Vector2i& position) const;
 		};
 	}
 }

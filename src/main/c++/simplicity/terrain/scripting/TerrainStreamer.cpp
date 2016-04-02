@@ -12,15 +12,15 @@ namespace simplicity
 	{
 		TerrainStreamer::TerrainStreamer(unique_ptr<vector<LevelOfDetail>> levelsOfDetail, const Vector2ui& mapSize,
 										 unsigned int chunkSize) :
-				centerPosition(0, 0),
 				chunks(),
 				chunkSize(chunkSize),
 				layerMap(),
 				levelsOfDetail(move(levelsOfDetail)),
 				mapSize(mapSize),
 				northWestChunk(0, 0),
-				radiusf(0.0f),
-				radiusi(0),
+				northWestPosition(0.0f, 0.0f, 0.0f),
+				radius(0),
+				size(0),
 				targetEntity(nullptr),
 				targetPosition(0.0f, 0.0f, 0.0f)
 		{
@@ -38,8 +38,10 @@ namespace simplicity
 				}
 			}
 
-			radiusi = layer - 1;
-			radiusf = radiusi + 0.5f;
+			radius = layer - 1;
+			size = layer * 2 - 1;
+			northWestPosition.X() -= (radius + 0.5f) * chunkSize;
+			northWestPosition.Z() -= (radius + 0.5f) * chunkSize;
 		}
 
 		void TerrainStreamer::execute()
@@ -49,51 +51,54 @@ namespace simplicity
 				targetPosition = getPosition3(targetEntity->getTransform());
 			}
 
-			float worldMovementX = targetPosition.X() - centerPosition.X();
-			float worldMovementZ = targetPosition.Z() - centerPosition.Y();
-			int movementX = static_cast<int>(round(worldMovementX / chunkSize));
-			int movementY = static_cast<int>(round(worldMovementZ / chunkSize));
+			Vector3 relativePosition = toRelativePosition(targetPosition, true);
+			Vector2i relativeChunkPosition = toChunkPosition(relativePosition);
 
-			if (movementX == 0 && movementY == 0)
+			if (relativeChunkPosition.X() == 0 && relativeChunkPosition.Y() == 0)
 			{
 				// Not enough movement to require terrain streaming.
 				return;
 			}
 
-			centerPosition.X() += movementX * chunkSize;
-			centerPosition.Y() += movementY * chunkSize;
+			northWestPosition += toWorldPosition(relativeChunkPosition);
 
-			stream(Vector2i(movementX, movementY));
+			stream(relativeChunkPosition);
+		}
+
+		float TerrainStreamer::getHeight(const Vector3& position) const
+		{
+			Vector3 relativePosition = toRelativePosition(position);
+			Vector2i chunkPosition = toChunkPosition(relativePosition);
+			if (chunkPosition.X() < 0 || chunkPosition.X() >= size ||
+				chunkPosition.Y() < 0 || chunkPosition.Y() >= size)
+			{
+				return 0.0f;
+			}
+
+			// Relative to chunk.
+			relativePosition -= toWorldPosition(chunkPosition);
+
+			unsigned int x = (chunkPosition.X() + northWestChunk.X()) % size;
+			unsigned int y = (chunkPosition.Y() + northWestChunk.Y()) % size;
+
+			return chunks[x][y].getHeight(relativePosition);
 		}
 
 		void TerrainStreamer::onAddEntity()
 		{
-			unsigned int layerCount = 0;
-			for (unsigned int index = 0; index < levelsOfDetail->size(); index++)
-			{
-				layerCount += levelsOfDetail->at(index).layerCount;
-			}
-
-			unsigned int size = layerCount * 2 - 1;
 			chunks.reserve(size);
 			for (unsigned int x = 0; x < size; x++)
 			{
-				chunks.push_back(vector<TerrainChunk>());
-				chunks.back().reserve(size);
-
-				for (unsigned int y = 0; y < size; y++)
-				{
-					chunks.back().push_back(TerrainChunk(0, 0));
-				}
+				chunks.push_back(vector<TerrainChunk>(size, TerrainChunk(0, 0)));
 			}
 
-			stream(Vector2i(static_cast<unsigned int>(chunks.size()),
-							static_cast<unsigned int>(chunks.size())));
+			stream(Vector2i(size, size));
 		}
 
 		void TerrainStreamer::setTarget(const Entity& target)
 		{
 			targetEntity = &target;
+			targetPosition = targetEntity->getPosition();
 		}
 
 		void TerrainStreamer::setTarget(const Vector3& target)
@@ -104,17 +109,15 @@ namespace simplicity
 
 		void TerrainStreamer::stream(const Vector2i& movement)
 		{
-			unsigned int size = static_cast<unsigned int>(chunks.size());
-
 			for (unsigned int x = 0; x < size; x++)
 			{
 				for (unsigned int y = 0; y < size; y++)
 				{
-					unsigned int previousX = (x + northWestChunk.X()) % size;
-					unsigned int previousY = (y + northWestChunk.Y()) % size;
+					unsigned int previousX = (x - northWestChunk.X() + size) % size;
+					unsigned int previousY = (y - northWestChunk.Y() + size) % size;
 
-					unsigned int previousXDistance = max(previousX, radiusi) - min(previousX, radiusi);
-					unsigned int previousYDistance = max(previousY, radiusi) - min(previousY, radiusi);
+					unsigned int previousXDistance = max(previousX, radius) - min(previousX, radius);
+					unsigned int previousYDistance = max(previousY, radius) - min(previousY, radius);
 					unsigned int previousLayer = max(previousXDistance, previousYDistance);
 					unsigned int previousLevelOfDetail = layerMap.at(previousLayer);
 
@@ -131,13 +134,13 @@ namespace simplicity
 					unsigned int wrappedTargetX = (targetX + size) % size;
 					unsigned int wrappedTargetY = (targetY + size) % size;
 
-					unsigned int targetXDistance = max(wrappedTargetX, radiusi) - min(wrappedTargetX, radiusi);
-					unsigned int targetYDistance = max(wrappedTargetY, radiusi) - min(wrappedTargetY, radiusi);
+					unsigned int targetXDistance = max(wrappedTargetX, radius) - min(wrappedTargetX, radius);
+					unsigned int targetYDistance = max(wrappedTargetY, radius) - min(wrappedTargetY, radius);
 					unsigned int targetLayer = max(targetXDistance, targetYDistance);
 					unsigned int targetLevelOfDetail = layerMap.at(targetLayer);
 
-					int worldX = static_cast<int>((wrappedTargetX - radiusf) * chunkSize) + centerPosition.X();
-					int worldY = static_cast<int>((wrappedTargetY - radiusf) * chunkSize) + centerPosition.Y();
+					int worldX = static_cast<int>(wrappedTargetX * chunkSize + northWestPosition.X());
+					int worldY = static_cast<int>(wrappedTargetY * chunkSize + northWestPosition.Z());
 					Vector2i chunkNorthWest(worldX, worldY);
 
 					unsigned int scale = levelsOfDetail->at(targetLevelOfDetail).sampleFrequency;
@@ -147,7 +150,6 @@ namespace simplicity
 
 					//if (wrap || targetLevelOfDetail != previousLevelOfDetail)
 					{
-
 						getEntity()->removeComponent(*chunks[x][y].getMesh());
 						chunks[x][y] = TerrainChunk(scaledChunkSize, scale);
 						getEntity()->addComponent(move(chunks[x][y].createMesh()));
@@ -174,22 +176,22 @@ namespace simplicity
 
 						if (targetXDistance == targetLayer)
 						{
-							if (wrappedTargetX <= radiusi)
+							if (wrappedTargetX <= radius)
 							{
 								chunks[x][y].patch(TerrainChunk::Edge::WEST, scaleRatio);
 							}
-							if (wrappedTargetX >= radiusi)
+							if (wrappedTargetX >= radius)
 							{
 								chunks[x][y].patch(TerrainChunk::Edge::EAST, scaleRatio);
 							}
 						}
 						if (targetYDistance == targetLayer)
 						{
-							if (wrappedTargetY <= radiusi)
+							if (wrappedTargetY <= radius)
 							{
 								chunks[x][y].patch(TerrainChunk::Edge::NORTH, scaleRatio);
 							}
-							if (wrappedTargetY >= radiusi)
+							if (wrappedTargetY >= radius)
 							{
 								chunks[x][y].patch(TerrainChunk::Edge::SOUTH, scaleRatio);
 							}
@@ -198,8 +200,33 @@ namespace simplicity
 				}
 			}
 
-			northWestChunk.X() = (northWestChunk.X() - movement.X() + size) % size;
-			northWestChunk.Y() = (northWestChunk.Y() - movement.Y() + size) % size;
+			northWestChunk.X() = (northWestChunk.X() + movement.X() + size) % size;
+			northWestChunk.Y() = (northWestChunk.Y() + movement.Y() + size) % size;
+		}
+
+		Vector2i TerrainStreamer::toChunkPosition(const Vector3& position) const
+		{
+			return Vector2i(static_cast<int>(floor(position.X() / chunkSize)),
+							static_cast<int>(floor(position.Z() / chunkSize)));
+		}
+
+		Vector3 TerrainStreamer::toRelativePosition(const Vector3& position, bool relativeToCenterChunk) const
+		{
+			Vector3 relativePosition = position - northWestPosition;
+
+			if (relativeToCenterChunk)
+			{
+				relativePosition -= Vector3(radius * chunkSize, 0.0f, radius * chunkSize);
+			}
+
+			return relativePosition;
+		}
+
+		Vector3 TerrainStreamer::toWorldPosition(const Vector2i& position) const
+		{
+			return Vector3(position.X() * static_cast<int>(chunkSize),
+						   0.0f,
+						   position.Y() * static_cast<int>(chunkSize));
 		}
 	}
 }
