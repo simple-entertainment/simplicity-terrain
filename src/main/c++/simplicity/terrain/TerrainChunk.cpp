@@ -26,14 +26,14 @@ namespace simplicity
 	namespace terrain
 	{
 		TerrainChunk::TerrainChunk(unsigned int size, float scale) :
-				mesh(nullptr),
-				samples(size + 1),
-				scale(scale),
-				size(size)
+			model(nullptr),
+			samples(size + 1),
+			scale(scale),
+			size(size)
 		{
 		}
 
-		unique_ptr<Mesh> TerrainChunk::createMesh()
+		unique_ptr<Model> TerrainChunk::createModel()
 		{
 			unsigned int vertexCount = samples * samples;
 			unsigned int squareCount = size * size;
@@ -41,7 +41,7 @@ namespace simplicity
 
 			shared_ptr<MeshBuffer> terrainBuffer =
 					ModelFactory::createMeshBuffer(vertexCount, indexCount, Buffer::AccessHint::READ_WRITE);
-			unique_ptr<Mesh> mesh = unique_ptr<Mesh>(new Mesh(terrainBuffer));
+			shared_ptr<Mesh> mesh = shared_ptr<Mesh>(new Mesh(terrainBuffer));
 
 			MeshData& meshData = mesh->getData(false);
 
@@ -52,8 +52,11 @@ namespace simplicity
 
 			mesh->releaseData();
 
-			this->mesh = mesh.get();
-			return move(mesh);
+			unique_ptr<Model> model = unique_ptr<Model>(new Model);
+			model->setMesh(mesh);
+
+			this->model = model.get();
+			return move(model);
 		}
 
 		float TerrainChunk::getHeight(const Vector3& position) const
@@ -70,7 +73,7 @@ namespace simplicity
 			float zLocal = fmod(position.Z(), scale);
 			bool inFirstTriangle = xLocal < zLocal;
 
-			const MeshData& meshData = mesh->getData();
+			const MeshData& meshData = model->getMesh()->getData();
 
 			unsigned int baseVertexIndex = meshPosition.Y() * samples + meshPosition.X();
 			Vector3 pointA(0.0f, meshData.vertexData[baseVertexIndex].position.Y(), 0.0f);
@@ -87,7 +90,7 @@ namespace simplicity
 				pointC = Vector3(scale, meshData.vertexData[baseVertexIndex + 1].position.Y(), 0.0f);
 			}
 
-			mesh->releaseData();
+			model->getMesh()->releaseData();
 
 			Vector3 edge0 = pointB - pointA;
 			Vector3 edge1 = pointC - pointA;
@@ -104,14 +107,14 @@ namespace simplicity
 			return y;
 		}
 
-		Mesh* TerrainChunk::getMesh()
+		Model* TerrainChunk::getModel()
 		{
-			return mesh;
+			return model;
 		}
 
-		const Mesh* TerrainChunk::getMesh() const
+		const Model* TerrainChunk::getModel() const
 		{
-			return mesh;
+			return model;
 		}
 
 		unsigned int TerrainChunk::getSize() const
@@ -121,7 +124,7 @@ namespace simplicity
 
 		void TerrainChunk::patch(Edge edge, unsigned int patchSize)
 		{
-			MeshData& meshData = mesh->getData(false);
+			MeshData& meshData = model->getMesh()->getData(false);
 
 			if (edge == Edge::EAST || edge == Edge::WEST)
 			{
@@ -178,7 +181,7 @@ namespace simplicity
 				}
 			}
 
-			mesh->releaseData();
+			model->getMesh()->releaseData();
 		}
 
 		void TerrainChunk::setIndices(MeshData& meshData)
@@ -204,7 +207,7 @@ namespace simplicity
 		void TerrainChunk::setVertices(const Vector2i& mapNorthWest, const vector<float>& heightMap,
 									   const vector<Vector3>& normalMap)
 		{
-			MeshData& meshData = mesh->getData(false);
+			MeshData& meshData = model->getMesh()->getData(false);
 
 			for (unsigned int column = 0; column < samples; column++)
 			{
@@ -247,7 +250,7 @@ namespace simplicity
 				}
 			}
 
-			mesh->releaseData();
+			model->getMesh()->releaseData();
 		}
 
 		Vector2i TerrainChunk::getMeshPosition(const Vector3& worldPosition) const

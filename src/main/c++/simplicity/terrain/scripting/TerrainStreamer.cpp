@@ -150,9 +150,9 @@ namespace simplicity
 
 					//if (wrap || targetLevelOfDetail != previousLevelOfDetail)
 					{
-						getEntity()->removeComponent(*chunks[x][y].getMesh());
+						getEntity()->removeComponent(*chunks[x][y].getModel());
 						chunks[x][y] = TerrainChunk(scaledChunkSize, scale);
-						getEntity()->addComponent(move(chunks[x][y].createMesh()));
+						getEntity()->addComponent(move(chunks[x][y].createModel()));
 
 						TerrainSource* source = levelsOfDetail->at(targetLevelOfDetail).source.get();
 						vector<float> heightMap = source->getSectionHeights(scaledChunkNorthWest, scaledChunkArea);

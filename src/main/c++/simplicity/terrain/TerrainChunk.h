@@ -17,7 +17,7 @@
 #ifndef TERRAINCHUNK_H_
 #define TERRAINCHUNK_H_
 
-#include <simplicity/model/Mesh.h>
+#include <simplicity/model/Model.h>
 
 namespace simplicity
 {
@@ -36,13 +36,13 @@ namespace simplicity
 
 				TerrainChunk(unsigned int size, float scale = 1.0f);
 
-				std::unique_ptr<Mesh> createMesh();
+				std::unique_ptr<Model> createModel();
 
 				float getHeight(const Vector3& position) const;
 
-				Mesh* getMesh();
+				Model* getModel();
 
-				const Mesh* getMesh() const;
+				const Model* getModel() const;
 
 				Vector2i getMeshPosition(const Vector3& worldPosition) const;
 
@@ -54,7 +54,7 @@ namespace simplicity
 								 const std::vector<Vector3>& normalMap);
 
 			private:
-				Mesh* mesh;
+				Model* model;
 
 				unsigned int samples;
 
