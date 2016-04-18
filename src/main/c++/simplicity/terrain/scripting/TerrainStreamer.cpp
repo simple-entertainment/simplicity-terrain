@@ -148,7 +148,7 @@ namespace simplicity
 					Vector2i scaledChunkNorthWest = chunkNorthWest / static_cast<int>(scale);
 					Vector2ui scaledChunkArea(scaledChunkSize, scaledChunkSize);
 
-					//if (wrap || targetLevelOfDetail != previousLevelOfDetail)
+					if (wrap || targetLevelOfDetail != previousLevelOfDetail)
 					{
 						getEntity()->removeComponent(*chunks[x][y].getModel());
 						chunks[x][y] = TerrainChunk(scaledChunkSize, scale);
@@ -160,13 +160,13 @@ namespace simplicity
 
 						chunks[x][y].setVertices(chunkNorthWest, heightMap, normalMap);
 					}
-					/*else
+					else
 					{
 						chunks[x][y].patch(TerrainChunk::Edge::NORTH, 1);
 						chunks[x][y].patch(TerrainChunk::Edge::EAST, 1);
 						chunks[x][y].patch(TerrainChunk::Edge::SOUTH, 1);
 						chunks[x][y].patch(TerrainChunk::Edge::WEST, 1);
-					}*/
+					}
 
 					if (targetLevelOfDetail < levelsOfDetail->size() - 1 &&
 						layerMap.at(targetLayer + 1) != targetLevelOfDetail)

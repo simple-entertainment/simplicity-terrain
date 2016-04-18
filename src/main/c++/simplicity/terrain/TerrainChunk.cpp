@@ -126,57 +126,163 @@ namespace simplicity
 		{
 			MeshData& meshData = model->getMesh()->getData(false);
 
-			if (edge == Edge::EAST || edge == Edge::WEST)
+			if (edge == Edge::NORTH)
 			{
 				unsigned int patchCount = size / patchSize;
-				unsigned int offset = 0;
-				if (edge == Edge::EAST)
-				{
-					offset = size;
-				}
 
 				for (unsigned int patchIndex = 0; patchIndex < patchCount; patchIndex++)
 				{
-					unsigned int baseVertexIndex = offset + samples * patchIndex * patchSize;
+					unsigned int baseIndex = patchIndex * patchSize * 6;
+					unsigned int baseVertexIndex = patchIndex * patchSize;
 
-					float northHeight = meshData.vertexData[baseVertexIndex].position.Y();
-					float southHeight = meshData.vertexData[baseVertexIndex + samples * patchSize].position.Y();
-
-					float heightDifference = southHeight - northHeight;
-
-					for (unsigned int unitIndex = 1; unitIndex < patchSize; unitIndex++)
+					for (unsigned int unitIndex = 0; unitIndex < patchSize; unitIndex++)
 					{
-						float height = northHeight + heightDifference * (static_cast<float>(unitIndex) /
-															  			 static_cast<float>(patchSize));
+						if (unitIndex <= (patchSize - 1) / 2)
+						{
+							meshData.indexData[baseIndex + unitIndex * 6] = baseVertexIndex;
 
-						meshData.vertexData[baseVertexIndex + samples * unitIndex].position.Y() = height;
+							// Collapse second triangle.
+							meshData.indexData[baseIndex + unitIndex * 6 + 3] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 4] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 5] = baseVertexIndex;
+						}
+						else
+						{
+							meshData.indexData[baseIndex + unitIndex * 6] = baseVertexIndex + patchSize;
+
+							// Collapse second triangle.
+							meshData.indexData[baseIndex + unitIndex * 6 + 3] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 4] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 5] = baseVertexIndex;
+						}
+
+						if (unitIndex == (patchSize - 1) / 2)
+						{
+							meshData.indexData[baseIndex + unitIndex * 6 + 3] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 4] = baseVertexIndex + samples + unitIndex + 1;
+							meshData.indexData[baseIndex + unitIndex * 6 + 5] = baseVertexIndex + patchSize;
+						}
 					}
 				}
 			}
-			else if (edge == Edge::NORTH || edge == Edge::SOUTH)
+			else if (edge == Edge::EAST)
 			{
 				unsigned int patchCount = size / patchSize;
-				unsigned int offset = 0;
-				if (edge == Edge::SOUTH)
-				{
-					offset = samples * size;
-				}
+				unsigned int indexOffset = (size - 1) * 6;
+				unsigned int vertexOffset = samples - 2;
 
 				for (unsigned int patchIndex = 0; patchIndex < patchCount; patchIndex++)
 				{
-					unsigned int baseVertexIndex = offset + patchIndex * patchSize;
+					unsigned int baseIndex = indexOffset + size * patchIndex * patchSize * 6;
+					unsigned int baseVertexIndex = vertexOffset + samples * patchIndex * patchSize;
 
-					float westHeight = meshData.vertexData[baseVertexIndex].position.Y();
-					float eastHeight = meshData.vertexData[baseVertexIndex + patchSize].position.Y();
-
-					float heightDifference = eastHeight - westHeight;
-
-					for (unsigned int unitIndex = 1; unitIndex < patchSize; unitIndex++)
+					for (unsigned int unitIndex = 0; unitIndex < patchSize; unitIndex++)
 					{
-						float height = westHeight + heightDifference * (static_cast<float>(unitIndex) /
-															 			static_cast<float>(patchSize));
+						if (unitIndex < patchSize / 2)
+						{
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 2] = baseVertexIndex + 1;
 
-						meshData.vertexData[baseVertexIndex + unitIndex].position.Y() = height;
+							// Collapse second triangle.
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 3] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 4] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 5] = baseVertexIndex;
+						}
+						else
+						{
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 2] = baseVertexIndex + samples * patchSize + 1;
+
+							// Collapse second triangle.
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 3] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 4] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 5] = baseVertexIndex;
+						}
+
+						if (unitIndex == patchSize / 2)
+						{
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 3] = baseVertexIndex + samples * unitIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 4] = baseVertexIndex + samples * patchSize + 1;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 5] = baseVertexIndex + 1;
+						}
+					}
+				}
+			}
+			else if (edge == Edge::SOUTH)
+			{
+				unsigned int patchCount = size / patchSize;
+				unsigned int indexOffset = size * (size - 1) * 6;
+				unsigned int vertexOffset = samples * (size - 1);
+
+				for (unsigned int patchIndex = 0; patchIndex < patchCount; patchIndex++)
+				{
+					unsigned int baseIndex = indexOffset + patchIndex * patchSize * 6;
+					unsigned int baseVertexIndex = vertexOffset + patchIndex * patchSize;
+
+					for (unsigned int unitIndex = 0; unitIndex < patchSize; unitIndex++)
+					{
+						if (unitIndex < patchSize / 2)
+						{
+							// Collapse first triangle.
+							meshData.indexData[baseIndex + unitIndex * 6] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 1] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 2] = baseVertexIndex;
+
+							meshData.indexData[baseIndex + unitIndex * 6 + 4] = baseVertexIndex + samples;
+						}
+						else
+						{
+							// Collapse first triangle.
+							meshData.indexData[baseIndex + unitIndex * 6] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 1] = baseVertexIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 2] = baseVertexIndex;
+
+							meshData.indexData[baseIndex + unitIndex * 6 + 4] = baseVertexIndex + samples + patchSize;
+						}
+
+						if (unitIndex == patchSize / 2)
+						{
+							meshData.indexData[baseIndex + unitIndex * 6] = baseVertexIndex + unitIndex;
+							meshData.indexData[baseIndex + unitIndex * 6 + 1] = baseVertexIndex + samples;
+							meshData.indexData[baseIndex + unitIndex * 6 + 2] = baseVertexIndex + samples + patchSize;
+						}
+					}
+				}
+			}
+			else if (edge == Edge::WEST)
+			{
+				unsigned int patchCount = size / patchSize;
+
+				for (unsigned int patchIndex = 0; patchIndex < patchCount; patchIndex++)
+				{
+					unsigned int baseIndex = size * patchIndex * patchSize * 6;
+					unsigned int baseVertexIndex = samples * patchIndex * patchSize;
+
+					for (unsigned int unitIndex = 0; unitIndex < patchSize; unitIndex++)
+					{
+						if (unitIndex <= (patchSize - 1) / 2)
+						{
+							// Collapse first triangle.
+							meshData.indexData[baseIndex + size * unitIndex * 6] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 1] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 2] = baseVertexIndex;
+
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 3] = baseVertexIndex;
+						}
+						else
+						{
+							// Collapse first triangle.
+							meshData.indexData[baseIndex + size * unitIndex * 6] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 1] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 2] = baseVertexIndex;
+
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 3] = baseVertexIndex + samples * patchSize;
+						}
+
+						if (unitIndex == (patchSize - 1) / 2)
+						{
+							meshData.indexData[baseIndex + size * unitIndex * 6] = baseVertexIndex;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 1] = baseVertexIndex + samples * patchSize;
+							meshData.indexData[baseIndex + size * unitIndex * 6 + 2] = baseVertexIndex + samples * (unitIndex + 1) + 1;
+						}
 					}
 				}
 			}
@@ -188,9 +294,9 @@ namespace simplicity
 		{
 			unsigned int indexIndex = 0;
 
-			for (unsigned int column = 0; column < size; column++)
+			for (unsigned int row = 0; row < size; row++)
 			{
-				for (unsigned int row = 0; row < size; row++)
+				for (unsigned int column = 0; column < size; column++)
 				{
 					unsigned int baseVertexIndex = row * samples + column;
 
@@ -209,9 +315,9 @@ namespace simplicity
 		{
 			MeshData& meshData = model->getMesh()->getData(false);
 
-			for (unsigned int column = 0; column < samples; column++)
+			for (unsigned int row = 0; row < samples; row++)
 			{
-				for (unsigned int row = 0; row < samples; row++)
+				for (unsigned int column = 0; column < samples; column++)
 				{
 					Vertex& vertex = meshData.vertexData[row * samples + column];
 
