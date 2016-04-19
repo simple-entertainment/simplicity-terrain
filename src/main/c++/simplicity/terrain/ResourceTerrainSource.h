@@ -19,6 +19,7 @@
 
 #include <simplicity/resources/Resource.h>
 
+#include "LevelOfDetail.h"
 #include "TerrainSource.h"
 
 namespace simplicity
@@ -29,27 +30,32 @@ namespace simplicity
 		{
 			public:
 				ResourceTerrainSource(const Vector2ui& mapSize, const Resource& resource,
-									  unsigned int resourceOffset = 0);
+									  const std::vector<LevelOfDetail>& lods = {});
 
 				std::vector<float> getSectionHeights(const Vector2i& sectionNorthWest,
-													 const Vector2ui& sectionSize) const override;
+													 const Vector2ui& sectionSize,
+													 unsigned int lodIndex) const override;
 
 				std::vector<Vector3> getSectionNormals(const Vector2i& sectionNorthWest,
-													   const Vector2ui& sectionSize) const override;
+													   const Vector2ui& sectionSize,
+													   unsigned int lodIndex) const override;
 
 			private:
-				Vector2ui mapSamples;
+				std::vector<unsigned int> heightOffsets;
 
-				unsigned int normalOffset;
+				std::vector<LevelOfDetail> lods;
+
+				Vector2ui mapSize;
+
+				std::vector<unsigned int> normalOffsets;
 
 				const Resource& resource;
 
-				unsigned int resourceOffset;
-
 				void readSection(const Vector2i& sectionNorthWest, const Vector2ui& sectionSamples,
-								 unsigned int offset, unsigned int stride, char* destination) const;
+								 unsigned int lodIndex, unsigned int offset, unsigned int stride,
+								 char* destination) const;
 
-				Vector2i toResourceSpace(const Vector2i& position) const;
+				Vector2i toResourceSpace(unsigned int lodIndex, const Vector2i& position) const;
 		};
 	}
 }

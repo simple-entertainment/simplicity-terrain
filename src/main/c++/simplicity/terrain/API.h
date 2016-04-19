@@ -16,6 +16,7 @@
  */
 
 // Core
+#include "LevelOfDetail.h"
 #include "ResourceTerrainSource.h"
 #include "TerrainFactory.h"
 #include "TerrainSource.h"

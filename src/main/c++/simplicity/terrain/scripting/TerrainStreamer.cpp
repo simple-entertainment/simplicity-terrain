@@ -10,27 +10,37 @@ namespace simplicity
 {
 	namespace terrain
 	{
-		TerrainStreamer::TerrainStreamer(unique_ptr<vector<LevelOfDetail>> levelsOfDetail, const Vector2ui& mapSize,
-										 unsigned int chunkSize) :
-				chunks(),
-				chunkSize(chunkSize),
-				layerMap(),
-				levelsOfDetail(move(levelsOfDetail)),
-				mapSize(mapSize),
-				northWestChunk(0, 0),
-				northWestPosition(0.0f, 0.0f, 0.0f),
-				radius(0),
-				size(0),
-				targetEntity(nullptr),
-				targetPosition(0.0f, 0.0f, 0.0f)
+		TerrainStreamer::TerrainStreamer(unique_ptr<TerrainSource> source, const Vector2ui& mapSize,
+										 unsigned int chunkSize, const vector<LevelOfDetail>& lods) :
+			chunks(),
+			chunkSize(chunkSize),
+			layerMap(),
+			lods(lods),
+			northWestChunk(0, 0),
+			northWestPosition(0.0f, 0.0f, 0.0f),
+			mapNorthWest(-static_cast<int>(mapSize.X()) / 2, -static_cast<int>(mapSize.Y()) / 2),
+			mapSouthEast(mapSize.X() / 2 - chunkSize, mapSize.Y() / 2 - chunkSize),
+			radius(0),
+			size(0),
+			source(move(source)),
+			targetEntity(nullptr),
+			targetPosition(0.0f, 0.0f, 0.0f)
 		{
 			// TODO chunkSize must be even! Enforce it!
 			// TODO Also things probably need to be multiples of each-other...
 
-			unsigned int layer = 0;
-			for (unsigned int index = 0; index < this->levelsOfDetail->size(); index++)
+			if (this->lods.size() == 0)
 			{
-				unsigned int maxLayer = layer + this->levelsOfDetail->at(index).layerCount;
+				LevelOfDetail levelOfDetail;
+				levelOfDetail.layerCount = 1;
+				levelOfDetail.sampleFrequency = 1;
+				this->lods.push_back(levelOfDetail);
+			}
+
+			unsigned int layer = 0;
+			for (unsigned int index = 0; index < lods.size(); index++)
+			{
+				unsigned int maxLayer = layer + lods[index].layerCount;
 				while (layer < maxLayer)
 				{
 					layerMap[layer] = index;
@@ -119,7 +129,7 @@ namespace simplicity
 					unsigned int previousXDistance = max(previousX, radius) - min(previousX, radius);
 					unsigned int previousYDistance = max(previousY, radius) - min(previousY, radius);
 					unsigned int previousLayer = max(previousXDistance, previousYDistance);
-					unsigned int previousLevelOfDetail = layerMap.at(previousLayer);
+					unsigned int previousLodIndex = layerMap.at(previousLayer);
 
 					int targetX = previousX - movement.X();
 					int targetY = previousY - movement.Y();
@@ -137,26 +147,40 @@ namespace simplicity
 					unsigned int targetXDistance = max(wrappedTargetX, radius) - min(wrappedTargetX, radius);
 					unsigned int targetYDistance = max(wrappedTargetY, radius) - min(wrappedTargetY, radius);
 					unsigned int targetLayer = max(targetXDistance, targetYDistance);
-					unsigned int targetLevelOfDetail = layerMap.at(targetLayer);
+					unsigned int targetLodIndex = layerMap.at(targetLayer);
 
 					int worldX = static_cast<int>(wrappedTargetX * chunkSize + northWestPosition.X());
 					int worldY = static_cast<int>(wrappedTargetY * chunkSize + northWestPosition.Z());
 					Vector2i chunkNorthWest(worldX, worldY);
 
-					unsigned int scale = levelsOfDetail->at(targetLevelOfDetail).sampleFrequency;
+					if (chunkNorthWest.X() < mapNorthWest.X() ||
+						chunkNorthWest.Y() < mapNorthWest.Y() ||
+						chunkNorthWest.X() > mapSouthEast.X() ||
+						chunkNorthWest.Y() > mapSouthEast.Y())
+					{
+						if (chunks[x][y].getModel() != nullptr)
+						{
+							chunks[x][y].getModel()->setVisible(false);
+						}
+
+						continue;
+					}
+
+					unsigned int scale = lods[targetLodIndex].sampleFrequency;
 					unsigned int scaledChunkSize = chunkSize / scale;
 					Vector2i scaledChunkNorthWest = chunkNorthWest / static_cast<int>(scale);
 					Vector2ui scaledChunkArea(scaledChunkSize, scaledChunkSize);
 
-					if (wrap || targetLevelOfDetail != previousLevelOfDetail)
+					if (wrap || targetLodIndex != previousLodIndex)
 					{
 						getEntity()->removeComponent(*chunks[x][y].getModel());
 						chunks[x][y] = TerrainChunk(scaledChunkSize, scale);
 						getEntity()->addComponent(move(chunks[x][y].createModel()));
 
-						TerrainSource* source = levelsOfDetail->at(targetLevelOfDetail).source.get();
-						vector<float> heightMap = source->getSectionHeights(scaledChunkNorthWest, scaledChunkArea);
-						vector<Vector3> normalMap = source->getSectionNormals(scaledChunkNorthWest, scaledChunkArea);
+						vector<float> heightMap = source->getSectionHeights(scaledChunkNorthWest, scaledChunkArea,
+																			targetLodIndex);
+						vector<Vector3> normalMap = source->getSectionNormals(scaledChunkNorthWest, scaledChunkArea,
+																			  targetLodIndex);
 
 						chunks[x][y].setVertices(chunkNorthWest, heightMap, normalMap);
 					}
@@ -168,10 +192,10 @@ namespace simplicity
 						chunks[x][y].patch(TerrainChunk::Edge::WEST, 1);
 					}
 
-					if (targetLevelOfDetail < levelsOfDetail->size() - 1 &&
-						layerMap.at(targetLayer + 1) != targetLevelOfDetail)
+					if (targetLodIndex < lods.size() - 1 &&
+						layerMap.at(targetLayer + 1) != targetLodIndex)
 					{
-						unsigned int nextScale = levelsOfDetail->at(targetLevelOfDetail + 1).sampleFrequency;
+						unsigned int nextScale = lods[targetLodIndex + 1].sampleFrequency;
 						unsigned int scaleRatio = nextScale / scale;
 
 						if (targetXDistance == targetLayer)

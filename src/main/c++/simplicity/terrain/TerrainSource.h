@@ -11,10 +11,12 @@ namespace simplicity
 		{
 			public:
 				virtual std::vector<float> getSectionHeights(const Vector2i& sectionNorthWest,
-															 const Vector2ui& sectionSize) const = 0;
+															 const Vector2ui& sectionSize,
+															 unsigned int lodIndex) const = 0;
 
 				virtual std::vector<Vector3> getSectionNormals(const Vector2i& sectionNorthWest,
-															   const Vector2ui& sectionSize) const = 0;
+															   const Vector2ui& sectionSize,
+															   unsigned int lodIndex) const = 0;
 		};
 	}
 }

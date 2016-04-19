@@ -9,7 +9,20 @@
  *
  * This file is part of simplicity. See the LICENSE file for the full license governing this code.
  */
-#ifndef BOBS_ISLAND_LEVELOFDETAIL_H
-#define BOBS_ISLAND_LEVELOFDETAIL_H
+#ifndef LEVELOFDETAIL_H
+#define LEVELOFDETAIL_H
 
-#endif //BOBS_ISLAND_LEVELOFDETAIL_H
+namespace simplicity
+{
+	namespace terrain
+	{
+		struct LevelOfDetail
+		{
+			unsigned int layerCount;
+
+			unsigned int sampleFrequency;
+		};
+	}
+}
+
+#endif //LEVELOFDETAIL_H

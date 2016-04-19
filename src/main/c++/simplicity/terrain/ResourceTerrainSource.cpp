@@ -27,52 +27,74 @@ namespace simplicity
 		const unsigned int NORMAL_STRIDE = sizeof(float) * 3;
 
 		ResourceTerrainSource::ResourceTerrainSource(const Vector2ui& mapSize, const Resource& resource,
-													 unsigned int resourceOffset):
-				mapSamples(),
-				normalOffset(0),
-				resource(resource),
-				resourceOffset(resourceOffset)
+													 const vector<LevelOfDetail>& lods):
+			heightOffsets(),
+			lods(lods),
+			mapSize(mapSize),
+			normalOffsets(),
+			resource(resource)
 		{
-			mapSamples = mapSize;
-			mapSamples.X()++;
-			mapSamples.Y()++;
+			if (lods.size() == 0)
+			{
+				heightOffsets.push_back(0);
 
-			normalOffset = mapSamples.X() * mapSamples.Y() * HEIGHT_STRIDE;
+				unsigned int mapSamples = (mapSize.X() + 1) * (mapSize.Y() + 1);
+				normalOffsets.push_back(mapSamples * HEIGHT_STRIDE);
+			}
+			else
+			{
+				unsigned int offset = 0;
+				for (LevelOfDetail lod : lods)
+				{
+					Vector2ui lodSize = mapSize / lod.sampleFrequency;
+					unsigned int lodSamples = (lodSize.X() + 1) * (lodSize.Y() + 1);
+
+					heightOffsets.push_back(offset);
+					offset += lodSamples * HEIGHT_STRIDE;
+					normalOffsets.push_back(offset);
+					offset += lodSamples * NORMAL_STRIDE;
+				}
+			}
 		}
 
 		vector<float> ResourceTerrainSource::getSectionHeights(const Vector2i& sectionNorthWest,
-															   const Vector2ui& sectionSize) const
+															   const Vector2ui& sectionSize,
+															   unsigned int lodIndex) const
 		{
 			Vector2ui sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
 
 			vector<float> heightMap(static_cast<size_t>(sectionSamples.X() * sectionSamples.Y()));
 
-			readSection(sectionNorthWest, sectionSamples, resourceOffset, HEIGHT_STRIDE,
+			readSection(sectionNorthWest, sectionSamples, lodIndex, heightOffsets[lodIndex], HEIGHT_STRIDE,
 						reinterpret_cast<char*>(heightMap.data()));
 
 			return heightMap;
 		}
 
 		vector<Vector3> ResourceTerrainSource::getSectionNormals(const Vector2i& sectionNorthWest,
-																 const Vector2ui& sectionSize) const
+																 const Vector2ui& sectionSize,
+																 unsigned int lodIndex) const
 		{
 			Vector2ui sectionSamples(sectionSize.X() + 1, sectionSize.Y() + 1);
 
 			vector<Vector3> normalMap(static_cast<size_t>(sectionSamples.X() * sectionSamples.Y()));
 
-			readSection(sectionNorthWest, sectionSamples, resourceOffset + normalOffset, NORMAL_STRIDE,
+			readSection(sectionNorthWest, sectionSamples, lodIndex, normalOffsets[lodIndex], NORMAL_STRIDE,
 						reinterpret_cast<char*>(normalMap.data()));
 
 			return normalMap;
 		}
 
 		void ResourceTerrainSource::readSection(const Vector2i& sectionNorthWest, const Vector2ui& sectionSamples,
-												unsigned int offset, unsigned int stride, char* destination) const
+												unsigned int lodIndex, unsigned int offset, unsigned int stride,
+												char* destination) const
 		{
-			unsigned int resourceRowSize = mapSamples.X() * stride;
+			Vector2ui lodSize = mapSize / lods[lodIndex].sampleFrequency;
+
+			unsigned int resourceRowSize = (lodSize.X() + 1) * stride;
 			unsigned int sectionRowSize = sectionSamples.X() * stride;
 
-			Vector2i resourceNorthWest = toResourceSpace(sectionNorthWest);
+			Vector2i resourceNorthWest = toResourceSpace(lodIndex, sectionNorthWest);
 			unsigned int resourcePosition = offset +
 					resourceNorthWest.Y() * resourceRowSize + resourceNorthWest.X() * stride;
 			unique_ptr<istream> resourceStream = resource.getInputStream();
@@ -86,11 +108,13 @@ namespace simplicity
 			}
 		}
 
-		Vector2i ResourceTerrainSource::toResourceSpace(const Vector2i& position) const
+		Vector2i ResourceTerrainSource::toResourceSpace(unsigned int lodIndex, const Vector2i& position) const
 		{
+			Vector2ui lodSize = mapSize / lods[lodIndex].sampleFrequency;
+
 			Vector2i resourcePosition = position;
-			resourcePosition.X() += mapSamples.X() / 2;
-			resourcePosition.Y() += mapSamples.Y() / 2;
+			resourcePosition.X() += (lodSize.X() + 1) / 2;
+			resourcePosition.Y() += (lodSize.Y() + 1) / 2;
 
 			return resourcePosition;
 		}
