@@ -292,20 +292,19 @@ namespace simplicity
 
 		void TerrainChunk::setIndices(MeshData& meshData)
 		{
-			unsigned int indexIndex = 0;
-
+			unsigned int index = 0;
 			for (unsigned int row = 0; row < size; row++)
 			{
 				for (unsigned int column = 0; column < size; column++)
 				{
 					unsigned int baseVertexIndex = row * samples + column;
 
-					meshData.indexData[indexIndex++] = baseVertexIndex;
-					meshData.indexData[indexIndex++] = baseVertexIndex + samples;
-					meshData.indexData[indexIndex++] = baseVertexIndex + samples + 1;
-					meshData.indexData[indexIndex++] = baseVertexIndex;
-					meshData.indexData[indexIndex++] = baseVertexIndex + samples + 1;
-					meshData.indexData[indexIndex++] = baseVertexIndex + 1;
+					meshData.indexData[index++] = baseVertexIndex;
+					meshData.indexData[index++] = baseVertexIndex + samples;
+					meshData.indexData[index++] = baseVertexIndex + samples + 1;
+					meshData.indexData[index++] = baseVertexIndex;
+					meshData.indexData[index++] = baseVertexIndex + samples + 1;
+					meshData.indexData[index++] = baseVertexIndex + 1;
 				}
 			}
 		}
